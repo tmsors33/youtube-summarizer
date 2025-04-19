@@ -145,7 +145,9 @@ const YoutubePlayer: React.FC<YoutubePlayerProps> = ({
     <div className="w-full bg-black rounded-lg overflow-hidden shadow-lg">
       <div className="bg-black rounded-lg p-2">
         <h3 className="text-white text-sm mb-2 font-semibold">현재 재생 중</h3>
-        <div className="aspect-video" id="youtube-player"></div>
+        <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+          <div id="youtube-player" className="absolute top-0 left-0 w-full h-full"></div>
+        </div>
       </div>
     </div>
   );

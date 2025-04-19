@@ -145,13 +145,13 @@ export default function Home() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
       
-      <main className="container py-10">
+      <main className="container py-10 max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-center mb-8">
           <FaYoutube className="text-primary text-4xl mr-2" />
           <h1 className="text-3xl font-bold">유튜브 영상 요약</h1>
         </div>
         
-        <div className="max-w-6xl mx-auto">
+        <div className="w-full mx-auto">
           <YoutubeUrlInput onSubmit={handleSubmit} isLoading={isLoading} />
           <p className="text-gray-500 text-sm mb-4">
             일반 YouTube 영상은 대부분 잘 요약되지만, <span className="font-medium">Shorts 영상</span>은 자막 추출 특성상 정확도가 다소 떨어질 수 있습니다.
@@ -165,7 +165,7 @@ export default function Home() {
           {videoDetails && !isLoading && (
             <div className="space-y-6">
               <div className="flex flex-col lg:flex-row gap-6">
-                <div className="lg:w-2/3 order-2 lg:order-1">
+                <div className="lg:w-3/5 order-2 lg:order-1">
                   {timeline.length > 0 && (
                     <div className="mb-6">
                       <VideoTimeline 
@@ -195,7 +195,7 @@ export default function Home() {
                   </div>
                 </div>
                 
-                <div className="lg:w-1/3 order-1 lg:order-2">
+                <div className="lg:w-2/5 order-1 lg:order-2">
                   {showPlayer && videoDetails && (
                     <div className="sticky top-4">
                       <YoutubePlayer 
