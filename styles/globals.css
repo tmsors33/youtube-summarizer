@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-background text-secondary;
+}
+
+.container {
+  @apply px-4 mx-auto max-w-6xl;
+}
+
+.btn {
+  @apply px-4 py-2 rounded font-medium transition-colors duration-200;
+}
+
+.btn-primary {
+  @apply bg-primary text-white hover:bg-opacity-90;
+}
+
+.input {
+  @apply w-full p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent;
+}
+
+.card {
+  @apply bg-white p-6 rounded-lg shadow-md;
+} 
