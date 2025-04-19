@@ -9,8 +9,9 @@ interface TimelineItem {
 
 interface VideoTimelineProps {
   items: TimelineItem[];
-  onTimeClick: (time: string) => void;
+  onTimeClick: (time: string, index: number) => void;
   currentTime?: string;
+  selectedIndex?: number;
 }
 
 // 시간 문자열(00:00)을 초 단위로 변환하는 함수
@@ -29,7 +30,8 @@ export const secondsToTime = (seconds: number): string => {
 const VideoTimeline: React.FC<VideoTimelineProps> = ({ 
   items, 
   onTimeClick,
-  currentTime = '00:00'
+  currentTime = '00:00',
+  selectedIndex = 0
 }) => {
   const currentSeconds = timeToSeconds(currentTime);
 
@@ -39,8 +41,7 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
       <div className="space-y-3">
         {items.map((item, index) => {
           const itemSeconds = timeToSeconds(item.time);
-          const isActive = itemSeconds <= currentSeconds && 
-            (index === items.length - 1 || timeToSeconds(items[index + 1].time) > currentSeconds);
+          const isActive = index === selectedIndex;
           
           return (
             <div 
@@ -48,10 +49,12 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
               className={`p-3 rounded-lg transition-colors cursor-pointer ${
                 isActive ? 'bg-primary bg-opacity-10 border-l-4 border-primary' : 'bg-gray-50 hover:bg-gray-100'
               }`}
-              onClick={() => onTimeClick(item.time)}
+              onClick={() => onTimeClick(item.time, index)}
             >
               <div className="flex items-center">
-                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-200 mr-3">
+                <div className={`flex items-center justify-center w-12 h-12 rounded-full mr-3 ${
+                  isActive ? 'bg-primary text-white' : 'bg-gray-200'
+                }`}>
                   <span className="font-mono font-medium">{item.time}</span>
                 </div>
                 <div className="flex-1">
@@ -67,5 +70,8 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
     </div>
   );
 };
+
+// 정적 메서드로 timeToSeconds 함수 추가
+VideoTimeline.timeToSeconds = timeToSeconds;
 
 export default VideoTimeline; 

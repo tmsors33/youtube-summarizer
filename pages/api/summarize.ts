@@ -3,6 +3,17 @@ import axios from 'axios';
 import { extractVideoId } from '@/lib/utils';
 import { OpenAI } from 'openai';
 
+// Next.js API 설정
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '1mb',
+    },
+    responseLimit: false,
+    externalResolver: true,
+  },
+};
+
 // Initialize OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -57,14 +68,11 @@ export default async function handler(
       return res.status(404).json({ error: '비디오 자막을 찾을 수 없습니다.' });
     }
 
-    // Generate summary using OpenAI
-    const summary = await generateSummary(transcript, videoDetails.title, summaryType);
-
-    // Generate timeline if requested
-    let timeline = [];
-    if (generateTimeline) {
-      timeline = await generateVideoTimeline(transcript, videoDetails.title);
-    }
+    // 병렬로 요약과 타임라인 생성 (시간 단축)
+    const [summary, timeline] = await Promise.all([
+      generateSummary(transcript, videoDetails.title, summaryType),
+      generateTimeline ? generateVideoTimeline(transcript, videoDetails.title) : Promise.resolve([])
+    ]);
 
     // Return the summary and video details
     return res.status(200).json({
@@ -72,9 +80,10 @@ export default async function handler(
       videoDetails,
       timeline: generateTimeline ? timeline : undefined,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error processing request:', error);
-    return res.status(500).json({ error: '요약 생성 중 오류가 발생했습니다.' });
+    const errorMessage = error.message || '요약 생성 중 오류가 발생했습니다.';
+    return res.status(500).json({ error: errorMessage });
   }
 }
 
@@ -86,7 +95,7 @@ async function getVideoDetails(videoId: string) {
     const apiKey = process.env.YOUTUBE_API_KEY;
     const url = `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&part=snippet,contentDetails,statistics&key=${apiKey}`;
     
-    const response = await axios.get(url);
+    const response = await axios.get(url, { timeout: 5000 }); // 5초 타임아웃 설정
     
     if (!response.data.items || response.data.items.length === 0) {
       return null;
@@ -113,25 +122,24 @@ async function getVideoDetails(videoId: string) {
 
 /**
  * Get video transcript using a third-party library or service
- * This is a placeholder - you'll need to implement or use a library for this
  */
 async function getVideoTranscript(videoId: string): Promise<string> {
   try {
-    // Option 1: Use YouTube Data API (captions endpoint)
-    // Note: This requires additional setup and permissions
+    // 현재 이 함수는 실제 유튜브 자막을 가져오지 않고 가상의 자막을 반환합니다.
+    // 아래는 실제 자막을 가져오는 구현 방법에 대한 주석입니다:
+    
+    // 방법 1: 서드파티 라이브러리 사용 (youtube-transcript 등)
+    // npm install youtube-transcript
+    // import { YoutubeTranscript } from 'youtube-transcript';
+    // const transcriptItems = await YoutubeTranscript.fetchTranscript(videoId);
+    // return transcriptItems.map(item => item.text).join(' ');
+    
+    // 방법 2: 유투브 자막 API 직접 사용 (추가 설정 필요)
+    // const captionsUrl = `https://www.googleapis.com/youtube/v3/captions?part=snippet&videoId=${videoId}&key=${process.env.YOUTUBE_API_KEY}`;
+    // const captionsResponse = await axios.get(captionsUrl);
+    // ...
 
-    // Option 2: Use a third-party service or library
-    // For this example, we'll use a simulated transcript
-    
-    // In a real implementation, you would use a library like youtube-transcript
-    // const transcript = await YoutubeTranscript.fetchTranscript(videoId);
-    // return transcript.map(item => item.text).join(' ');
-    
-    // Simulate a small delay to mimic API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // For demo purposes, we're returning a placeholder transcript
-    // You would replace this with actual transcript fetching logic
+    // 테스트용 자막 데이터 반환 (짧은 시간 내 처리를 위해 지연 제거)
     return `이 영상은 ${videoId} 아이디를 가진 유튜브 영상의 내용입니다. 실제 구현에서는 이 부분에 유튜브 API나 서드파티 라이브러리를 사용하여 실제 영상의 자막을 가져와야 합니다. 현재는 예시 텍스트로 대체되었습니다. 이 영상은 다양한 주제를 다루고 있으며, 시청자들에게 유용한 정보를 제공합니다. 콘텐츠 제작자는 이 영상에서 주요 개념을 설명하고, 실제 예시를 보여주며, 시청자들이 이해하기 쉽게 내용을 전달하고 있습니다. 또한 영상에서는 관련 리소스와 추가 학습 자료에 대한 정보도 제공합니다.`;
   } catch (error) {
     console.error('Error fetching transcript:', error);
@@ -149,10 +157,10 @@ async function generateSummary(transcript: string, title: string, summaryType: s
     
     if (summaryType === 'brief') {
       systemPrompt = '당신은 유튜브 영상의 내용을 간결하고 명확하게 요약해주는 전문가입니다. 다음 영상 자막을, 핵심 내용만 간추려 한국어로 정리해주세요. 요약은 다음 형식으로 제공해주세요: 1. 영상의 주요 주제 (1-2줄), 2. 핵심 내용 요약 (3-5개의 글머리 기호), 3. 주요 결론 또는 인사이트 (1-2줄)';
-      maxTokens = 500;
+      maxTokens = 300; // 토큰 수 감소
     } else if (summaryType === 'detailed') {
       systemPrompt = '당신은 유튜브 영상의 내용을 상세하게 요약해주는 전문가입니다. 다음 영상 자막을 분석하여 한국어로 포괄적인 요약을 제공해주세요. 요약은 다음 형식으로 제공해주세요: 1. 영상 개요 (2-3줄), 2. 주요 섹션별 상세 요약 (각 섹션 2-3 문단), 3. 핵심 인사이트 및 배경 정보 (3-5개 항목), 4. 전문 용어 설명 (필요한 경우), 5. 결론 및 시청자에게 주는 의미 (3-4줄)';
-      maxTokens = 1000;
+      maxTokens = 700; // 토큰 수 감소
     }
     
     const response = await openai.chat.completions.create({
@@ -183,7 +191,7 @@ async function generateSummary(transcript: string, title: string, summaryType: s
  */
 async function generateVideoTimeline(transcript: string, title: string): Promise<any[]> {
   try {
-    const systemPrompt = '당신은 유튜브 영상의 타임라인을 생성하는 전문가입니다. 제공된 영상 자막을 분석하여 중요한 시점과 내용을 5-10개의 타임라인 항목으로 정리해주세요. 타임라인은 영상의 흐름을 따라 시간 순서대로 정리되어야 합니다. 각 항목에는 시간(mm:ss 형식), 제목, 간략한 설명을 포함해주세요. JSON 형식으로 다음과 같이 응답해주세요: [{"time": "00:00", "title": "제목", "description": "설명"}, ...]';
+    const systemPrompt = '당신은 유튜브 영상의 타임라인을 생성하는 전문가입니다. 제공된 영상 자막을 분석하여 중요한 시점과 내용을 5개의 타임라인 항목으로 정리해주세요. 타임라인은 영상의 흐름을 따라 시간 순서대로 정리되어야 합니다. 각 항목에는 시간(mm:ss 형식), 제목, 간략한 설명을 포함해주세요. JSON 형식으로 다음과 같이 응답해주세요: {"timeline":[{"time": "00:00", "title": "제목", "description": "설명"}, ...]}';
     
     const response = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
@@ -198,7 +206,7 @@ async function generateVideoTimeline(transcript: string, title: string): Promise
         }
       ],
       temperature: 0.5,
-      max_tokens: 1000,
+      max_tokens: 500, // 토큰 수 감소
       response_format: { type: "json_object" }
     });
 
@@ -209,7 +217,7 @@ async function generateVideoTimeline(transcript: string, title: string): Promise
     } catch (e) {
       console.error('Error parsing timeline JSON:', e);
       
-      // 가상의 타임라인 반환 (실제 구현에서는 제거)
+      // 고정된 타임라인 샘플 반환
       return [
         { time: "00:00", title: "영상 시작", description: "주제 소개 및 개요" },
         { time: "01:30", title: "주요 개념 설명", description: "핵심 아이디어와 중요 포인트 설명" },
@@ -221,7 +229,7 @@ async function generateVideoTimeline(transcript: string, title: string): Promise
   } catch (error) {
     console.error('Error generating timeline:', error);
     
-    // 가상의 타임라인 반환 (실제 구현에서는 제거)
+    // 고정된 타임라인 샘플 반환
     return [
       { time: "00:00", title: "영상 시작", description: "주제 소개 및 개요" },
       { time: "01:30", title: "주요 개념 설명", description: "핵심 아이디어와 중요 포인트 설명" },

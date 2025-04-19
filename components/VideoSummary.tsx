@@ -32,31 +32,13 @@ const VideoSummary: React.FC<VideoSummaryProps> = ({
     : '요약 내용을 불러오는 중입니다...';
   
   return (
-    <div className="card">
-      <div className="flex flex-col md:flex-row gap-6 mb-6">
-        <div className="md:w-1/3">
-          <img
-            src={`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`}
-            alt={videoDetails.title}
-            className="w-full h-auto rounded"
-          />
-        </div>
-        <div className="md:w-2/3">
-          <h2 className="text-2xl font-bold mb-2">{videoDetails.title}</h2>
-          <p className="text-gray-600 mb-4">{videoDetails.channelTitle}</p>
-          <div className="flex flex-wrap gap-2 text-sm text-gray-500 mb-2">
-            <span>조회수: {formatViewCount(videoDetails.viewCount)}</span>
-            <span className="mx-2">•</span>
-            <span>게시일: {new Date(videoDetails.publishedAt).toLocaleDateString('ko-KR')}</span>
-          </div>
-          <a
-            href={`https://www.youtube.com/watch?v=${videoId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary hover:underline mt-2 inline-block"
-          >
-            유튜브에서 보기
-          </a>
+    <div className="bg-white p-5 rounded-lg shadow-sm border">
+      <div className="mb-4">
+        <h2 className="text-xl font-bold mb-1">{videoDetails.title}</h2>
+        <div className="flex flex-wrap gap-2 text-sm text-gray-500">
+          <span>조회수: {formatViewCount(videoDetails.viewCount)}</span>
+          <span className="mx-1">•</span>
+          <span>채널: {videoDetails.channelTitle}</span>
         </div>
       </div>
       

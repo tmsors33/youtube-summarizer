@@ -142,8 +142,11 @@ const YoutubePlayer: React.FC<YoutubePlayerProps> = ({
   }, [startTime, isPlayerReady]);
   
   return (
-    <div className="aspect-video w-full bg-black rounded-lg overflow-hidden">
-      <div id="youtube-player"></div>
+    <div className="w-full bg-black rounded-lg overflow-hidden shadow-lg">
+      <div className="bg-black rounded-lg p-2">
+        <h3 className="text-white text-sm mb-2 font-semibold">현재 재생 중</h3>
+        <div className="aspect-video" id="youtube-player"></div>
+      </div>
     </div>
   );
 };
