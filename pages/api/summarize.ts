@@ -157,10 +157,10 @@ async function generateSummary(transcript: string, title: string, summaryType: s
     
     if (summaryType === 'brief') {
       systemPrompt = '당신은 유튜브 영상의 내용을 간결하고 명확하게 요약해주는 전문가입니다. 다음 영상 자막을, 핵심 내용만 간추려 한국어로 정리해주세요. 요약은 다음 형식으로 제공해주세요: 1. 영상의 주요 주제 (1-2줄), 2. 핵심 내용 요약 (3-5개의 글머리 기호), 3. 주요 결론 또는 인사이트 (1-2줄)';
-      maxTokens = 300; // 토큰 수 감소
+      maxTokens = 800; // 토큰 수 증가
     } else if (summaryType === 'detailed') {
       systemPrompt = '당신은 유튜브 영상의 내용을 상세하게 요약해주는 전문가입니다. 다음 영상 자막을 분석하여 한국어로 포괄적인 요약을 제공해주세요. 요약은 다음 형식으로 제공해주세요: 1. 영상 개요 (2-3줄), 2. 주요 섹션별 상세 요약 (각 섹션 2-3 문단), 3. 핵심 인사이트 및 배경 정보 (3-5개 항목), 4. 전문 용어 설명 (필요한 경우), 5. 결론 및 시청자에게 주는 의미 (3-4줄)';
-      maxTokens = 700; // 토큰 수 감소
+      maxTokens = 1500; // 토큰 수 증가
     }
     
     const response = await openai.chat.completions.create({
