@@ -24,10 +24,12 @@ const VideoSummary: React.FC<VideoSummaryProps> = ({
   
   // 요약 내용에서 숫자 목록 항목을 강조하기 위해 정규식을 사용하여 스타일링
   const formattedSummary = summary
-    .replace(/^\d+\.\s(.*)$/gm, '<h4 class="text-lg font-semibold mt-4 mb-2">$1</h4>')
-    .replace(/^•\s(.*)$/gm, '<li class="ml-6 list-disc my-1">$1</li>')
-    .replace(/^- (.*)$/gm, '<li class="ml-6 list-disc my-1">$1</li>')
-    .replace(/\n\n/g, '<div class="my-3"></div>');
+    ? summary
+        .replace(/^\d+\.\s(.*)$/gm, '<h4 class="text-lg font-semibold mt-4 mb-2">$1</h4>')
+        .replace(/^•\s(.*)$/gm, '<li class="ml-6 list-disc my-1">$1</li>')
+        .replace(/^- (.*)$/gm, '<li class="ml-6 list-disc my-1">$1</li>')
+        .replace(/\n\n/g, '<div class="my-3"></div>')
+    : '요약 내용을 불러오는 중입니다...';
   
   return (
     <div className="card">
@@ -59,9 +61,8 @@ const VideoSummary: React.FC<VideoSummaryProps> = ({
       </div>
       
       <div>
-        <h3 className="text-xl font-semibold mb-4">영상 요약</h3>
         <div 
-          className="bg-gray-50 p-4 rounded"
+          className="bg-gray-50 p-4 rounded prose prose-sm max-w-none"
           dangerouslySetInnerHTML={{ __html: formattedSummary }}
         />
       </div>

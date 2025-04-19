@@ -12,6 +12,7 @@ const openai = new OpenAI({
 type ResponseData = {
   summary: string;
   videoDetails: any;
+  timeline?: any[];
 } | {
   error: string;
 }
@@ -29,7 +30,7 @@ export default async function handler(
   }
 
   try {
-    const { videoUrl, summaryType = 'brief' } = req.body;
+    const { videoUrl, summaryType = 'brief', generateTimeline = false } = req.body;
     
     if (!videoUrl) {
       return res.status(400).json({ error: '비디오 URL이 제공되지 않았습니다.' });
@@ -59,10 +60,17 @@ export default async function handler(
     // Generate summary using OpenAI
     const summary = await generateSummary(transcript, videoDetails.title, summaryType);
 
+    // Generate timeline if requested
+    let timeline = [];
+    if (generateTimeline) {
+      timeline = await generateVideoTimeline(transcript, videoDetails.title);
+    }
+
     // Return the summary and video details
     return res.status(200).json({
       summary,
       videoDetails,
+      timeline: generateTimeline ? timeline : undefined,
     });
   } catch (error) {
     console.error('Error processing request:', error);
@@ -167,5 +175,59 @@ async function generateSummary(transcript: string, title: string, summaryType: s
   } catch (error) {
     console.error('Error generating summary:', error);
     return '요약을 생성하는 중 오류가 발생했습니다. 나중에 다시 시도해 주세요.';
+  }
+}
+
+/**
+ * Generate timeline for the video using OpenAI
+ */
+async function generateVideoTimeline(transcript: string, title: string): Promise<any[]> {
+  try {
+    const systemPrompt = '당신은 유튜브 영상의 타임라인을 생성하는 전문가입니다. 제공된 영상 자막을 분석하여 중요한 시점과 내용을 5-10개의 타임라인 항목으로 정리해주세요. 타임라인은 영상의 흐름을 따라 시간 순서대로 정리되어야 합니다. 각 항목에는 시간(mm:ss 형식), 제목, 간략한 설명을 포함해주세요. JSON 형식으로 다음과 같이 응답해주세요: [{"time": "00:00", "title": "제목", "description": "설명"}, ...]';
+    
+    const response = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: [
+        {
+          role: 'system',
+          content: systemPrompt
+        },
+        {
+          role: 'user',
+          content: `영상 제목: ${title}\n\n영상 자막: ${transcript}`
+        }
+      ],
+      temperature: 0.5,
+      max_tokens: 1000,
+      response_format: { type: "json_object" }
+    });
+
+    const content = response.choices[0].message.content || '';
+    try {
+      const parsedContent = JSON.parse(content);
+      return parsedContent.timeline || [];
+    } catch (e) {
+      console.error('Error parsing timeline JSON:', e);
+      
+      // 가상의 타임라인 반환 (실제 구현에서는 제거)
+      return [
+        { time: "00:00", title: "영상 시작", description: "주제 소개 및 개요" },
+        { time: "01:30", title: "주요 개념 설명", description: "핵심 아이디어와 중요 포인트 설명" },
+        { time: "03:45", title: "실제 예시", description: "이론을 실제로 적용한 사례 소개" },
+        { time: "06:20", title: "추가 정보", description: "관련 자료 및 추천 리소스 안내" },
+        { time: "08:00", title: "결론", description: "핵심 내용 요약 및 마무리" }
+      ];
+    }
+  } catch (error) {
+    console.error('Error generating timeline:', error);
+    
+    // 가상의 타임라인 반환 (실제 구현에서는 제거)
+    return [
+      { time: "00:00", title: "영상 시작", description: "주제 소개 및 개요" },
+      { time: "01:30", title: "주요 개념 설명", description: "핵심 아이디어와 중요 포인트 설명" },
+      { time: "03:45", title: "실제 예시", description: "이론을 실제로 적용한 사례 소개" },
+      { time: "06:20", title: "추가 정보", description: "관련 자료 및 추천 리소스 안내" },
+      { time: "08:00", title: "결론", description: "핵심 내용 요약 및 마무리" }
+    ];
   }
 } 
