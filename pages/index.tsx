@@ -81,6 +81,9 @@ export default function Home() {
         
         <div className="max-w-3xl mx-auto">
           <YoutubeUrlInput onSubmit={handleSubmit} isLoading={isLoading} />
+          <p className="text-gray-500 text-sm mb-4">
+            일반 YouTube 영상은 대부분 잘 요약되지만, <span className="font-medium">Shorts 영상</span>은 자막 추출 특성상 정확도가 다소 떨어질 수 있습니다.
+          </p>
           {error && <p className="text-red-500 mt-2 mb-4">{error}</p>}
           
           {isLoading && (
