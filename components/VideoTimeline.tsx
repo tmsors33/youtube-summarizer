@@ -71,7 +71,4 @@ const VideoTimeline: React.FC<VideoTimelineProps> = ({
   );
 };
 
-// 정적 메서드로 timeToSeconds 함수 추가
-VideoTimeline.timeToSeconds = timeToSeconds;
-
 export default VideoTimeline; 
