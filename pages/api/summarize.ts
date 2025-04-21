@@ -71,7 +71,7 @@ export default async function handler(
     // 병렬로 요약과 타임라인 생성 (시간 단축)
     const [summary, timeline] = await Promise.all([
       generateSummary(transcript, videoDetails.title, summaryType),
-      generateTimeline ? generateVideoTimeline(transcript, videoDetails.title) : Promise.resolve([])
+      generateTimeline ? generateVideoTimeline(transcript, videoDetails.title, summaryType) : Promise.resolve([])
     ]);
 
     // Return the summary and video details
@@ -189,9 +189,12 @@ async function generateSummary(transcript: string, title: string, summaryType: s
 /**
  * Generate timeline for the video using OpenAI
  */
-async function generateVideoTimeline(transcript: string, title: string): Promise<any[]> {
+async function generateVideoTimeline(transcript: string, title: string, summaryType: string = 'brief'): Promise<any[]> {
   try {
-    const systemPrompt = '당신은 유튜브 영상의 타임라인을 생성하는 전문가입니다. 제공된 영상 자막을 분석하여 중요한 시점과 내용을 5개의 타임라인 항목으로 정리해주세요. 타임라인은 영상의 흐름을 따라 시간 순서대로 정리되어야 합니다. 각 항목에는 시간(mm:ss 형식), 제목, 간략한 설명을 포함해주세요. JSON 형식으로 다음과 같이 응답해주세요: {"timeline":[{"time": "00:00", "title": "제목", "description": "설명"}, ...]}';
+    // 요약 타입에 따라 타임라인 개수 결정
+    const timelineCount = summaryType === 'brief' ? 5 : 20;
+    
+    const systemPrompt = `당신은 유튜브 영상의 타임라인을 생성하는 전문가입니다. 제공된 영상 자막을 분석하여 중요한 시점과 내용을 ${timelineCount}개의 타임라인 항목으로 정리해주세요. 타임라인은 영상의 흐름을 따라 시간 순서대로 정리되어야 합니다. 각 항목에는 시간(mm:ss 형식), 제목, 간략한 설명을 포함해주세요. JSON 형식으로 다음과 같이 응답해주세요: {"timeline":[{"time": "00:00", "title": "제목", "description": "설명"}, ...]}`;
     
     const response = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
@@ -206,7 +209,7 @@ async function generateVideoTimeline(transcript: string, title: string): Promise
         }
       ],
       temperature: 0.5,
-      max_tokens: 500, // 토큰 수 감소
+      max_tokens: summaryType === 'brief' ? 500 : 1500, // 상세 요약일 경우 토큰 수 증가
       response_format: { type: "json_object" }
     });
 
@@ -217,7 +220,54 @@ async function generateVideoTimeline(transcript: string, title: string): Promise
     } catch (e) {
       console.error('Error parsing timeline JSON:', e);
       
-      // 고정된 타임라인 샘플 반환
+      // 고정된 타임라인 샘플 반환 (요약 타입에 따라 샘플 개수 다르게)
+      if (summaryType === 'brief') {
+        return [
+          { time: "00:00", title: "영상 시작", description: "주제 소개 및 개요" },
+          { time: "01:30", title: "주요 개념 설명", description: "핵심 아이디어와 중요 포인트 설명" },
+          { time: "03:45", title: "실제 예시", description: "이론을 실제로 적용한 사례 소개" },
+          { time: "06:20", title: "추가 정보", description: "관련 자료 및 추천 리소스 안내" },
+          { time: "08:00", title: "결론", description: "핵심 내용 요약 및 마무리" }
+        ];
+      } else {
+        // 상세 요약용 더 많은 샘플 타임라인 항목 생성
+        const detailedTimeline = [];
+        for (let i = 0; i < 20; i++) {
+          const minutes = Math.floor(i * 1.5);
+          const seconds = Math.floor(Math.random() * 59);
+          const time = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+          
+          let title, description;
+          if (i === 0) {
+            title = "영상 소개";
+            description = "주제 소개 및 개요 설명";
+          } else if (i < 3) {
+            title = `주제 설명 ${i}`;
+            description = "주요 개념과 용어 설명";
+          } else if (i < 10) {
+            title = `핵심 내용 ${i-2}`;
+            description = "영상의 중요 내용 설명";
+          } else if (i < 15) {
+            title = `실제 사례 ${i-9}`;
+            description = "이론을 적용한 실제 사례 분석";
+          } else if (i < 19) {
+            title = `추가 정보 ${i-14}`;
+            description = "관련 자료 및 추가 학습 내용";
+          } else {
+            title = "결론";
+            description = "영상 내용 정리 및 마무리";
+          }
+          
+          detailedTimeline.push({ time, title, description });
+        }
+        return detailedTimeline;
+      }
+    }
+  } catch (error) {
+    console.error('Error generating timeline:', error);
+    
+    // 고정된 타임라인 샘플 반환 (요약 타입에 따라 샘플 개수 다르게)
+    if (summaryType === 'brief') {
       return [
         { time: "00:00", title: "영상 시작", description: "주제 소개 및 개요" },
         { time: "01:30", title: "주요 개념 설명", description: "핵심 아이디어와 중요 포인트 설명" },
@@ -225,17 +275,38 @@ async function generateVideoTimeline(transcript: string, title: string): Promise
         { time: "06:20", title: "추가 정보", description: "관련 자료 및 추천 리소스 안내" },
         { time: "08:00", title: "결론", description: "핵심 내용 요약 및 마무리" }
       ];
+    } else {
+      // 상세 요약용 더 많은 샘플 타임라인 항목 생성
+      const detailedTimeline = [];
+      for (let i = 0; i < 20; i++) {
+        const minutes = Math.floor(i * 1.5);
+        const seconds = Math.floor(Math.random() * 59);
+        const time = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        
+        let title, description;
+        if (i === 0) {
+          title = "영상 소개";
+          description = "주제 소개 및 개요 설명";
+        } else if (i < 3) {
+          title = `주제 설명 ${i}`;
+          description = "주요 개념과 용어 설명";
+        } else if (i < 10) {
+          title = `핵심 내용 ${i-2}`;
+          description = "영상의 중요 내용 설명";
+        } else if (i < 15) {
+          title = `실제 사례 ${i-9}`;
+          description = "이론을 적용한 실제 사례 분석";
+        } else if (i < 19) {
+          title = `추가 정보 ${i-14}`;
+          description = "관련 자료 및 추가 학습 내용";
+        } else {
+          title = "결론";
+          description = "영상 내용 정리 및 마무리";
+        }
+        
+        detailedTimeline.push({ time, title, description });
+      }
+      return detailedTimeline;
     }
-  } catch (error) {
-    console.error('Error generating timeline:', error);
-    
-    // 고정된 타임라인 샘플 반환
-    return [
-      { time: "00:00", title: "영상 시작", description: "주제 소개 및 개요" },
-      { time: "01:30", title: "주요 개념 설명", description: "핵심 아이디어와 중요 포인트 설명" },
-      { time: "03:45", title: "실제 예시", description: "이론을 실제로 적용한 사례 소개" },
-      { time: "06:20", title: "추가 정보", description: "관련 자료 및 추천 리소스 안내" },
-      { time: "08:00", title: "결론", description: "핵심 내용 요약 및 마무리" }
-    ];
   }
 } 
