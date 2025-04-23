@@ -24,9 +24,9 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   useEffect(() => {
     if (elapsedTime > 3 && elapsedTime <= 10) {
       setLoadingPhase(1); // 유튜브 데이터 가져오기
-    } else if (elapsedTime > 10 && elapsedTime <= 25) {
+    } else if (elapsedTime > 10 && elapsedTime <= 30) {
       setLoadingPhase(2); // 자막 분석 중
-    } else if (elapsedTime > 25) {
+    } else if (elapsedTime > 30) {
       setLoadingPhase(3); // 요약 생성 중
     }
   }, [elapsedTime]);
@@ -70,14 +70,14 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
       </div>
       <p className="text-lg font-medium mb-2">{getPhaseMessage()}</p>
       <p className="text-sm text-gray-500">
-        {elapsedTime >= 30 ? 
+        {elapsedTime >= 45 ?
           "처리 시간이 길어지고 있습니다. 잠시만 더 기다려주세요..." : 
           `경과 시간: ${elapsedTime}초`
         }
       </p>
-      {elapsedTime >= 45 && (
+      {elapsedTime >= 60 && (
         <p className="text-xs text-red-500 mt-2">
-          요청 처리 시간이 길어지고 있습니다. 네트워크 상태나 영상 길이에 따라 최대 1분까지 소요될 수 있습니다.
+          요청 처리 시간이 길어지고 있습니다. 네트워크 상태나 영상 길이에 따라 최대 2분까지 소요될 수 있습니다.
         </p>
       )}
     </div>

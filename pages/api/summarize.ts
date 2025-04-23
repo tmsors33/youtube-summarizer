@@ -95,7 +95,7 @@ async function getVideoDetails(videoId: string) {
     const apiKey = process.env.YOUTUBE_API_KEY;
     const url = `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&part=snippet,contentDetails,statistics&key=${apiKey}`;
     
-    const response = await axios.get(url, { timeout: 5000 }); // 5초 타임아웃 설정
+    const response = await axios.get(url, { timeout: 10000 }); // 10초 타임아웃 설정으로 변경
     
     if (!response.data.items || response.data.items.length === 0) {
       return null;

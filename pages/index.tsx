@@ -63,7 +63,7 @@ export default function Home() {
     try {
       // API 요청 시간 늘리기
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60초 타임아웃
+      const timeoutId = setTimeout(() => controller.abort(), 120000); // 120초 타임아웃으로 변경
 
       const response = await fetch('/api/summarize', {
         method: 'POST',
