@@ -68,18 +68,42 @@ export default async function handler(
       return res.status(404).json({ error: '비디오 자막을 찾을 수 없습니다.' });
     }
 
-    // 병렬로 요약과 타임라인 생성 (시간 단축)
-    const [summary, timeline] = await Promise.all([
-      generateSummary(transcript, videoDetails.title, summaryType),
-      generateTimeline ? generateVideoTimeline(transcript, videoDetails.title, summaryType) : Promise.resolve([])
-    ]);
+    // API 요청 타임아웃 설정 - 환경 변수에서 가져옴 (기본값 120초)
+    const apiTimeout = parseInt(process.env.API_TIMEOUT || '120000');
 
-    // Return the summary and video details
-    return res.status(200).json({
-      summary,
-      videoDetails,
-      timeline: generateTimeline ? timeline : undefined,
-    });
+    try {
+      // 병렬로 요약과 타임라인 생성 (시간 단축)
+      const [summary, timeline] = await Promise.all([
+        generateSummary(transcript, videoDetails.title, summaryType, apiTimeout),
+        generateTimeline ? generateVideoTimeline(transcript, videoDetails.title, summaryType, apiTimeout) : Promise.resolve([])
+      ]);
+
+      // Return the summary and video details
+      return res.status(200).json({
+        summary,
+        videoDetails,
+        timeline: generateTimeline ? timeline : undefined,
+      });
+    } catch (apiError) {
+      console.error('API 요청 타임아웃 또는 오류 발생:', apiError);
+      
+      // 기본 요약 생성 (간단한 방식)
+      const basicSummary = `영상 제목: ${videoDetails.title}\n\n이 영상은 ${videoDetails.channelTitle} 채널에서 제작한 콘텐츠입니다.\n\n영상의 내용을 완전히 요약하지 못했습니다. 서버 부하가 높거나 영상이 너무 긴 경우 이런 현상이 발생할 수 있습니다. 잠시 후 다시 시도해 주세요.`;
+      
+      // 기본 타임라인 생성
+      const basicTimeline = [
+        { time: "00:00", title: "영상 시작", description: "주제 소개 및 개요" },
+        { time: "02:00", title: "주요 내용", description: "핵심 아이디어 설명" },
+        { time: Math.floor(videoDetails.duration / 2).toString().padStart(2, '0') + ":00", title: "중간 내용", description: "주요 논의 내용" },
+        { time: Math.floor(videoDetails.duration * 0.8).toString().padStart(2, '0') + ":00", title: "결론", description: "마무리 및 요약" }
+      ];
+      
+      return res.status(200).json({
+        summary: basicSummary,
+        videoDetails,
+        timeline: generateTimeline ? basicTimeline : undefined,
+      });
+    }
   } catch (error: any) {
     console.error('Error processing request:', error);
     const errorMessage = error.message || '요약 생성 중 오류가 발생했습니다.';
@@ -150,7 +174,7 @@ async function getVideoTranscript(videoId: string): Promise<string> {
 /**
  * Generate summary using OpenAI's GPT model
  */
-async function generateSummary(transcript: string, title: string, summaryType: string = 'brief'): Promise<string> {
+async function generateSummary(transcript: string, title: string, summaryType: string = 'brief', timeout: number = 60000): Promise<string> {
   try {
     let systemPrompt = '';
     let maxTokens = 0;
@@ -162,6 +186,11 @@ async function generateSummary(transcript: string, title: string, summaryType: s
       systemPrompt = '당신은 유튜브 영상의 내용을 상세하게 요약해주는 전문가입니다. 다음 영상 자막을 분석하여 한국어로 포괄적인 요약을 제공해주세요. 요약은 다음 형식으로 제공해주세요: \n\n1. 영상 개요 (2-3줄) - 영상의 목적과 주요 주제 간략히 설명\n\n2. 주요 섹션별 상세 요약 (각 섹션 2-3 문단) - 영상에서 다루는 주요 섹션이나 파트별로 내용을 요약하여 구조적으로 정리. 각 섹션의 내용과 핵심 주장 중심으로 설명\n\n3. 핵심 인사이트 및 배경 정보 (3-5개 항목) - 영상 내용에서 얻을 수 있는 통찰, 교훈이나 시사점 위주로 작성. 단순 요약이 아닌 내용 사이의 연결점, 숨겨진 의미, 맥락적 배경 정보 제공\n\n4. 전문 용어 설명 (필요한 경우) - 영상에서 언급된 중요 전문 용어 설명\n\n5. 결론 및 시청자에게 주는 의미 (3-4줄) - 영상의 종합적 의미와 시청자에게 주는 가치';
       maxTokens = 1500; // 토큰 수 증가
     }
+    
+    // 요청 옵션 설정 - 타임아웃
+    const options = {
+      timeout: timeout // 전달받은 타임아웃 설정
+    };
     
     const response = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
@@ -176,25 +205,30 @@ async function generateSummary(transcript: string, title: string, summaryType: s
         }
       ],
       temperature: 0.5,
-      max_tokens: maxTokens,
-    });
+      max_tokens: maxTokens
+    }, options);
 
     return response.choices[0].message.content || '요약을 생성할 수 없습니다.';
   } catch (error) {
     console.error('Error generating summary:', error);
-    return '요약을 생성하는 중 오류가 발생했습니다. 나중에 다시 시도해 주세요.';
+    throw error; // 에러를 상위로 전파하여 폴백 메커니즘 실행
   }
 }
 
 /**
  * Generate timeline for the video using OpenAI
  */
-async function generateVideoTimeline(transcript: string, title: string, summaryType: string = 'brief'): Promise<any[]> {
+async function generateVideoTimeline(transcript: string, title: string, summaryType: string = 'brief', timeout: number = 60000): Promise<any[]> {
   try {
     // 요약 타입에 따라 타임라인 개수 결정
     const timelineCount = summaryType === 'brief' ? 5 : 20;
     
     const systemPrompt = `당신은 유튜브 영상의 타임라인을 생성하는 전문가입니다. 제공된 영상 자막을 분석하여 중요한 시점과 내용을 ${timelineCount}개의 타임라인 항목으로 정리해주세요. 타임라인은 영상의 흐름을 따라 시간 순서대로 정리되어야 합니다. 각 항목에는 시간(mm:ss 형식), 제목, 간략한 설명을 포함해주세요. JSON 형식으로 다음과 같이 응답해주세요: {"timeline":[{"time": "00:00", "title": "제목", "description": "설명"}, ...]}`;
+    
+    // 요청 옵션 설정 - 타임아웃
+    const options = {
+      timeout: timeout // 전달받은 타임아웃 설정
+    };
     
     const response = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
@@ -211,7 +245,7 @@ async function generateVideoTimeline(transcript: string, title: string, summaryT
       temperature: 0.5,
       max_tokens: summaryType === 'brief' ? 500 : 1500, // 상세 요약일 경우 토큰 수 증가
       response_format: { type: "json_object" }
-    });
+    }, options);
 
     const content = response.choices[0].message.content || '';
     try {
