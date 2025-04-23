@@ -183,7 +183,16 @@ export default function Home() {
                         <FaClock className="mr-2" /> 영상 요약
                       </h2>
                       <span className="inline-block py-1 px-3 bg-gray-200 rounded-full text-sm">
-                        {summaryType === 'brief' ? '짧은 요약' : '상세 요약'}
+                        {(() => {
+                          switch(summaryType) {
+                            case 'brief': return '짧게 요약';
+                            case 'detailed': return '상세 요약';
+                            case 'bullet': return '핵심 포인트';
+                            case 'eli5': return '쉽게 설명';
+                            case 'academic': return '학술적 요약';
+                            default: return '요약';
+                          }
+                        })()}
                       </span>
                     </div>
                     
